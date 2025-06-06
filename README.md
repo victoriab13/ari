@@ -5,43 +5,45 @@ This project is a real-time voice-based web application built using FastAPI and 
 
 ## Project Structure
 ```
-voice-webapp
+.
 ├── app
 │   ├── main.py                # Entry point of the FastAPI application
 │   ├── websocket.py           # WebSocket endpoint implementation
-│   ├── audio
-│   │   └── __init__.py        # Placeholder for audio processing utilities
-│   └── utils
-│       └── __init__.py        # Placeholder for utility functions
+│   ├── audio/
+│   └── utils/
 ├── requirements.txt           # Project dependencies
 ├── README.md                  # Project documentation
-└── tests
-    └── test_websocket.py      # Unit tests for WebSocket functionality
+├── tests/                     # Unit tests
+├── frontend/                  # (if you have frontend code)
 ```
 
 ## Setup Instructions
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   cd voice-webapp
-   ```
 
-2. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+1. **Clone the repository:**
+    ```sh
+    git clone <repository-url>
+    cd <repo-folder>
+    ```
 
-3. Run the application:
-   ```
-   uvicorn app.main:app --reload
-   ```
+2. **Install dependencies:**
+    ```sh
+    pip install -r requirements.txt
+    ```
+
+3. **Run the application:**
+    ```sh
+    uvicorn app.main:app --reload
+    ```
 
 ## Usage
+
 - Connect to the WebSocket endpoint to send audio data and receive responses.
 - The application processes audio streams in real-time, providing a seamless interaction experience.
 
 ## Contributing
-Feel free to submit issues or pull requests for improvements or bug fixes. 
+
+Feel free to submit issues or pull requests for improvements or bug fixes.
 
 ## License
+
 This project is licensed under the MIT License.
