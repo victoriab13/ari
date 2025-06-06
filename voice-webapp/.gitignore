@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+tests/
+test_*.py
+agent_prompt.txt
+interruptions.txt
+voice_config.json
+*.log

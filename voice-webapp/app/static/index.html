@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Patient Support Companion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background: #eaf4fb;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .container {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+      margin-top: 60px;
+      padding: 40px 32px 32px 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+    h1 {
+      color: #1976d2;
+      margin-bottom: 10px;
+      font-size: 2rem;
+      letter-spacing: 1px;
+    }
+    .greeting {
+      color: #333;
+      font-size: 1.15rem;
+      margin-bottom: 32px;
+    }
+    .chat-area {
+      background: #f4f8fb;
+      border-radius: 12px;
+      min-height: 120px;
+      max-height: 260px;
+      overflow-y: auto;
+      margin-bottom: 18px;
+      padding: 12px 8px;
+      text-align: left;
+    }
+    .bubble {
+      border-radius: 12px;
+      padding: 10px 16px;
+      margin: 8px 0;
+      display: inline-block;
+      max-width: 85%;
+      font-size: 1rem;
+      word-break: break-word;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.07);
+      clear: both;
+    }
+    .user-bubble {
+      background: #1976d2;
+      color: #fff;
+      float: right;
+      text-align: right;
+    }
+    .agent-bubble {
+      background: #e3f2fd;
+      color: #1976d2;
+      float: left;
+      text-align: left;
+    }
+    .clearfix::after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+    .mic-btn {
+      background: #1976d2;
+      border: none;
+      border-radius: 50%;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px auto;
+      box-shadow: 0 4px 16px rgba(25, 118, 210, 0.18);
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+      position: relative;
+    }
+    .mic-btn.active {
+      background: #42a5f5;
+      box-shadow: 0 0 0 8px #bbdefb;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 #bbdefb; }
+      70% { box-shadow: 0 0 0 16px rgba(187,222,251,0); }
+      100% { box-shadow: 0 0 0 0 rgba(187,222,251,0); }
+    }
+    .mic-icon {
+      width: 38px;
+      height: 38px;
+      fill: #fff;
+    }
+    .status {
+      font-size: 1rem;
+      color: #1976d2;
+      margin-bottom: 18px;
+      min-height: 24px;
+      transition: color 0.2s;
+    }
+    .error {
+      color: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Patient Support Companion</h1>
+    <div class="greeting" id="greetingMsg">Hello. How may I help you today?</div>
+    <div id="chatArea" class="chat-area clearfix"></div>
+    <button id="micBtn" class="mic-btn" title="Hold to talk">
+      <svg class="mic-icon" viewBox="0 0 24 24">
+        <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a1 1 0 1 1 2 0 7 7 0 0 1-6 6.92V21a1 1 0 1 1-2 0v-2.08A7 7 0 0 1 5 12a1 1 0 1 1 2 0 5 5 0 0 0 10 0z"/>
+      </svg>
+    </button>
+    <div class="status" id="statusMsg">Click the microphone and speak</div>
+  </div>
+  <script>
+    // Debug logging to confirm script and mic access
+    console.log("Script loaded");
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => console.log("Microphone access granted"))
+      .catch(err => console.error("Microphone access denied", err));
+
+
+    const micBtn = document.getElementById('micBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    const chatArea = document.getElementById('chatArea');
+    const greetingMsg = document.getElementById('greetingMsg');
+    let isActive = false;
+    let pc, ms, dc, audioEl;
+    let userTranscript = "";
+    let agentTranscript = "";
+
+
+    // --- Load system prompt from backend, but do NOT show or speak it ---
+    let SYSTEM_PROMPT = "";
+    async function fetchSystemPrompt() {
+      try {
+        const res = await fetch("/agent_prompt");
+        const data = await res.json();
+        SYSTEM_PROMPT = data.prompt;
+        console.log("Loaded system prompt (not shown to user):", SYSTEM_PROMPT);
+      } catch (e) {
+        console.error("Failed to load system prompt", e);
+        SYSTEM_PROMPT = "";
+      }
+    }
+    fetchSystemPrompt();
+
+
+    function setStatus(msg, color="#1976d2") {
+      statusMsg.textContent = msg;
+      statusMsg.style.color = color;
+    }
+
+
+    function addBubble(text, sender) {
+      const div = document.createElement('div');
+      div.className = 'bubble ' + (sender === 'user' ? 'user-bubble' : 'agent-bubble');
+      div.textContent = text;
+      chatArea.appendChild(div);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+
+    function clearGreeting() {
+      greetingMsg.style.display = 'none';
+    }
+
+
+    async function startRealtimeSession() {
+      setStatus("Connecting...", "#1976d2");
+      try {
+        // 1. Get ephemeral key from backend
+        const tokenResponse = await fetch("/session");
+        const data = await tokenResponse.json();
+        if (!data.client_secret || !data.client_secret.value) {
+          setStatus("Failed to get ephemeral key. Check your OpenAI access.", "#d32f2f");
+          console.error("Session response:", data);
+          return;
+        }
+        const EPHEMERAL_KEY = data.client_secret.value;
+
+
+        // 3. Create peer connection
+        pc = new RTCPeerConnection();
+
+
+        // ICE connection state debug
+        pc.addEventListener('iceconnectionstatechange', () => {
+          console.log('ICE connection state:', pc.iceConnectionState);
+        });
+
+
+        // 4. Set up to play remote audio from the model
+        audioEl = document.createElement("audio");
+        audioEl.autoplay = true;
+        pc.ontrack = e => {
+          console.log("Received remote audio track:", e);
+          audioEl.srcObject = e.streams[0];
+        };
+
+
+        // 5. Add local audio track for microphone input
+        ms = await navigator.mediaDevices.getUserMedia({ audio: true });
+        pc.addTrack(ms.getTracks()[0]);
+
+
+        // 6. Set up data channel for events
+        dc = pc.createDataChannel("oai-events");
+        dc.addEventListener("message", (e) => {
+          console.log("Received event:", e.data);
+          try {
+            const event = JSON.parse(e.data);
+            if (event.type && event.type.includes("input_audio_transcription")) {
+              if (event.delta) {
+                userTranscript += event.delta;
+              }
+              if (event.transcript) {
+                userTranscript = event.transcript;
+                addBubble(userTranscript, 'user');
+                userTranscript = "";
+                clearGreeting();
+              }
+            }
+            if (event.type && event.type.includes("output_audio_generation")) {
+              if (event.delta) {
+                agentTranscript += event.delta;
+              }
+              if (event.text) {
+                agentTranscript = event.text;
+                addBubble(agentTranscript, 'agent');
+                agentTranscript = "";
+              }
+            }
+          } catch (err) {
+            // Not a JSON event, ignore
+          }
+        });
+
+
+        // 7. Start the session using SDP (send as plain text, not JSON)
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+
+        const baseUrl = "https://api.openai.com/v1/realtime";
+        const model = "gpt-4o-realtime-preview-2024-12-17";
+        const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+          method: "POST",
+          body: offer.sdp, // send SDP as plain text
+          headers: {
+            Authorization: `Bearer ${EPHEMERAL_KEY}`,
+            "Content-Type": "application/sdp"
+          },
+        });
+
+
+        // Debug: log the raw response
+        const answerText = await sdpResponse.text();
+        console.log("OpenAI Realtime API response:", answerText);
+
+
+        if (!answerText.startsWith("v=")) {
+          setStatus("OpenAI API error: " + answerText, "#d32f2f");
+          throw new Error("OpenAI API did not return SDP. See console for details.");
+        }
+
+
+        const answer = {
+          type: "answer",
+          sdp: answerText,
+        };
+        await pc.setRemoteDescription(answer);
+
+
+        // --- Do NOT show or speak the system prompt to the user ---
+
+
+        setStatus("Listening... Click again to stop.", "#1976d2");
+      } catch (err) {
+        setStatus("Error: " + err.message, "#d32f2f");
+        console.error(err);
+      }
+    }
+
+
+    async function stopRealtimeSession() {
+      if (dc) dc.close();
+      if (pc) pc.close();
+      if (ms) ms.getTracks().forEach(track => track.stop());
+      setStatus("Stopped.", "#1976d2");
+    }
+
+
+    micBtn.addEventListener('click', async () => {
+      if (!isActive) {
+        micBtn.classList.add('active');
+        isActive = true;
+        await startRealtimeSession();
+      } else {
+        micBtn.classList.remove('active');
+        isActive = false;
+        await stopRealtimeSession();
+      }
+    });
+  </script>
+</body>
+</html>

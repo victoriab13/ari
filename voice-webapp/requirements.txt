@@ -1,0 +1,4 @@
+FastAPI
+uvicorn
+websockets
+openai
