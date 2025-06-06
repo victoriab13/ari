@@ -2,3 +2,4 @@ FastAPI
 uvicorn
 websockets
 openai
+python-dotenv
