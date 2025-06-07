@@ -42,8 +42,9 @@ async def get_session():
             },
             json={
                 "model": "gpt-4o-realtime-preview-2024-12-17",
-                "voice": "coral",
-                "instructions": SYSTEM_MESSAGE  # <-- Add your full prompt here
+                "voice": "shimmer",  # <-- switched back from "sage" to "shimmer"
+                "instructions": SYSTEM_MESSAGE,  # <-- Add your full prompt here
+                "speed": 0.9  # Try lowering the speed for a gentler delivery
             }
         )
         print("OpenAI session response:", resp.text)
